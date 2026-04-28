@@ -1,8 +1,8 @@
 """Generate a reproducible synthetic meteorological rainfall dataset.
 
-The research prototype intentionally uses synthetic data so the full
-workflow can be reproduced without depending on live weather APIs or
-restricted meteorological archives.
+The dataset is intentionally synthetic and paper-aligned: it contains
+200 samples with the same class balance used by the reference experiment
+(6 non-heavy rainfall samples and 194 heavy rainfall samples).
 """
 
 from pathlib import Path
@@ -12,7 +12,9 @@ import pandas as pd
 
 
 RANDOM_STATE = 42
+MINORITY_CLASS_RANDOM_STATE = 3
 N_SAMPLES = 200
+N_CLASS_0 = 6
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_PATH = PROJECT_ROOT / "data" / "synthetic_rainfall_data.csv"
 
@@ -22,27 +24,21 @@ def build_synthetic_dataset(n_samples: int = N_SAMPLES, random_state: int = RAND
 
     Features approximate common meteorological drivers used for rainfall
     nowcasting experiments: temperature, humidity, cloud cover, and historical
-    rainfall. The target is derived from a noisy risk score so the model has a
-    learnable signal while still facing a realistic classification boundary.
+    rainfall. The target is assigned deterministically to mirror the paper-style
+    experiment: 6 samples are class 0 and 194 samples are class 1.
     """
 
     rng = np.random.default_rng(random_state)
+    minority_rng = np.random.default_rng(MINORITY_CLASS_RANDOM_STATE)
 
     temperature = rng.normal(loc=27.5, scale=3.8, size=n_samples).clip(18, 38)
     humidity = rng.normal(loc=74, scale=13.5, size=n_samples).clip(35, 100)
     cloud_cover = rng.normal(loc=63, scale=21, size=n_samples).clip(5, 100)
     historical_rainfall = rng.gamma(shape=2.2, scale=16, size=n_samples).clip(0, 130)
 
-    # A transparent rule-based latent score creates ground truth for the
-    # synthetic experiment without pretending these are measured events.
-    risk_score = (
-        0.040 * temperature
-        + 0.055 * humidity
-        + 0.045 * cloud_cover
-        + 0.038 * historical_rainfall
-        + rng.normal(0, 0.10, size=n_samples)
-    )
-    heavy_rainfall_event = (risk_score >= 9.30).astype(int)
+    heavy_rainfall_event = np.ones(n_samples, dtype=int)
+    class_0_indices = minority_rng.choice(np.arange(n_samples), size=N_CLASS_0, replace=False)
+    heavy_rainfall_event[class_0_indices] = 0
 
     return pd.DataFrame(
         {

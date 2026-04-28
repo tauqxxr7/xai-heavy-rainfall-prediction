@@ -38,13 +38,13 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     model = joblib.load(MODEL_PATH)
     data = load_dataset()
-    _, X_test, _, _ = split_features(data)
+    _, X_eval, _, _ = split_features(data)
 
     explainer = shap.TreeExplainer(model)
-    shap_values = select_positive_class_shap_values(explainer.shap_values(X_test))
+    shap_values = select_positive_class_shap_values(explainer.shap_values(X_eval[FEATURE_COLUMNS]))
 
     plt.figure(figsize=(8, 5.5))
-    shap.summary_plot(shap_values, X_test[FEATURE_COLUMNS], show=False, plot_type="dot")
+    shap.summary_plot(shap_values, X_eval[FEATURE_COLUMNS], show=False, plot_type="dot")
     plt.title("SHAP Summary: Heavy Rainfall Event Prediction", pad=14)
     plt.tight_layout()
     plt.savefig(OUTPUT_DIR / "shap_summary.png", dpi=180, bbox_inches="tight")
@@ -58,4 +58,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
